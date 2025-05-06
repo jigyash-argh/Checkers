@@ -2,11 +2,20 @@ import axios from 'axios';
 
 // Create axios instance with base URL
 const api = axios.create({
-    baseURL: 'http://localhost:5000/api',
+    baseURL: 'http://localhost:5001/api',
     headers: {
         'Content-Type': 'application/json'
     }
 });
+
+// Debug function to validate token
+export const checkAuthToken = () => {
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+    const user = JSON.parse(localStorage.getItem('user') || sessionStorage.getItem('user') || 'null');
+    console.log('Current token:', token);
+    console.log('Current user:', user);
+    return { token, user };
+};
 
 // Add interceptor to attach token to every request
 api.interceptors.request.use(
@@ -17,6 +26,9 @@ api.interceptors.request.use(
         // If token exists, add it to request headers
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
+            console.log('Adding authorization header:', `Bearer ${token}`);
+        } else {
+            console.warn('No token found in storage');
         }
 
         return config;
@@ -83,10 +95,29 @@ export const logoutUser = async() => {
 // Game API calls
 export const createGame = async(isPublic = false) => {
     try {
+        // Check auth token before making the request
+        const { token } = checkAuthToken();
+        if (!token) {
+            throw new Error('Authentication token is missing. Please log in again.');
+        }
+
+        console.log('Creating game with isPublic:', isPublic);
         const response = await api.post('/games', { isPublic });
+        console.log('Create game response:', response.data);
         return response.data;
     } catch (error) {
+        console.error('Create game error:', error);
+        const status = error.response ? error.response.status : null;
         const errorMessage = error.response && error.response.data && error.response.data.message;
+
+        if (status === 401) {
+            console.error('Authentication error (401):', errorMessage);
+            // Clear tokens if authentication fails
+            localStorage.removeItem('token');
+            sessionStorage.removeItem('token');
+            throw new Error('Your session has expired. Please log in again.');
+        }
+
         throw new Error(errorMessage || 'Failed to create game');
     }
 };
@@ -148,6 +179,16 @@ export const forfeitGame = async(gameId) => {
     } catch (error) {
         const errorMessage = error.response && error.response.data && error.response.data.message;
         throw new Error(errorMessage || 'Failed to forfeit game');
+    }
+};
+
+export const deleteGame = async(gameId) => {
+    try {
+        const response = await api.delete(`/games/${gameId}`);
+        return response.data;
+    } catch (error) {
+        const errorMessage = error.response && error.response.data && error.response.data.message;
+        throw new Error(errorMessage || 'Failed to delete game');
     }
 };
 

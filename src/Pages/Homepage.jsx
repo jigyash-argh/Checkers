@@ -70,7 +70,7 @@ const Homepage = () => {
             />
             {error && <p className="text-red-500 mt-2">{error}</p>}
           </div>
-
+          
           {/* Title with animation */}
           <h1 
             className={`text-4xl md:text-5xl font-bold text-amber-500 transition-all duration-1000 ${

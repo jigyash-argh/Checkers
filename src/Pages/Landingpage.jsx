@@ -1,6 +1,7 @@
+// eslint-disable-next-line no-unused-vars
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { createGame, joinGame, getPublicGames } from '../utils/api';
+import { createGame, joinGame, getPublicGames, getMyGames, deleteGame, checkAuthToken } from '../utils/api';
 
 const LandingPage = () => {
   const navigate = useNavigate();
@@ -9,17 +10,24 @@ const LandingPage = () => {
   const [gameCode, setGameCode] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [publicGames, setPublicGames] = useState([]);
+  const [myGames, setMyGames] = useState([]);
+  const [createdGameInfo, setCreatedGameInfo] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     // Check if user is logged in
-    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-    const storedUser = JSON.parse(localStorage.getItem('user') || sessionStorage.getItem('user') || 'null');
+    const { token, user: storedUser } = checkAuthToken();
     
     if (token && storedUser) {
+      console.log('User is authenticated:', storedUser);
       setIsLoggedIn(true);
       setUser(storedUser);
       loadPublicGames();
+      loadMyGames();
+    } else {
+      console.log('User is not authenticated');
+      setIsLoggedIn(false);
+      setUser(null);
     }
   }, []);
   
@@ -30,6 +38,20 @@ const LandingPage = () => {
       setPublicGames(response.data || []);
     } catch (error) {
       console.error('Failed to load public games:', error);
+      // Don't show error for this as it's not critical
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadMyGames = async () => {
+    try {
+      setIsLoading(true);
+      const response = await getMyGames();
+      setMyGames(response.data || []);
+    } catch (error) {
+      console.error('Failed to load my games:', error);
+      // Don't show error for this as it's not critical
     } finally {
       setIsLoading(false);
     }
@@ -51,14 +73,67 @@ const LandingPage = () => {
     
     try {
       setIsLoading(true);
+      setErrorMessage('');
       const response = await createGame(isPublic);
       
       if (response.success) {
-        // Navigate to game page with the game id and share code
-        navigate(`/game?id=${response.data._id}&code=${response.data.gameCode}`);
+        // For private games, show the game code to share
+        if (!isPublic) {
+          setCreatedGameInfo({
+            id: response.data._id,
+            gameCode: response.data.gameCode,
+            isPublic: false
+          });
+        } else {
+          // For public games, navigate directly
+          navigate(`/game?id=${response.data._id}&code=${response.data.gameCode}`);
+        }
+        // Refresh my games list
+        loadMyGames();
+      } else {
+        setErrorMessage('Failed to create game. Server did not return success status.');
       }
     } catch (error) {
-      setErrorMessage(error.message || 'Failed to create game');
+      console.error('Error creating game:', error);
+      
+      // Handle session expiration
+      if (error.message.includes('session has expired') || error.message.includes('authentication')) {
+        setIsLoggedIn(false);
+        setUser(null);
+        setErrorMessage('Your session has expired. Please log in again.');
+        // Clear any existing tokens
+        localStorage.removeItem('token');
+        sessionStorage.removeItem('token');
+        localStorage.removeItem('user');
+        sessionStorage.removeItem('user');
+      } else {
+        setErrorMessage(error.message || 'Failed to create game');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteGame = async (gameId) => {
+    if (!isLoggedIn) {
+      setErrorMessage('You must be logged in to delete a game');
+      return;
+    }
+    
+    try {
+      setIsLoading(true);
+      await deleteGame(gameId);
+      
+      // Refresh games lists
+      loadMyGames();
+      loadPublicGames();
+      
+      // Clear created game info if it's the same game
+      if (createdGameInfo && createdGameInfo.id === gameId) {
+        setCreatedGameInfo(null);
+      }
+    } catch (error) {
+      setErrorMessage(error.message || 'Failed to delete game');
     } finally {
       setIsLoading(false);
     }
@@ -111,6 +186,12 @@ const LandingPage = () => {
     }
   };
 
+  const handleStartCreatedGame = () => {
+    if (createdGameInfo) {
+      navigate(`/game?id=${createdGameInfo.id}&code=${createdGameInfo.gameCode}`);
+    }
+  };
+
   return (
     <div className="flex gap-5 flex-col md:flex-row items-center justify-center h-screen bg-[#302E2B] p-6">
       {/* Left Side - Image */}
@@ -130,14 +211,53 @@ const LandingPage = () => {
         </p>
 
         {errorMessage && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded w-full text-center">
+          <div className="bg-red-800/40 border border-red-600 text-red-200 px-4 py-3 rounded w-full text-center">
             {errorMessage}
             <button 
-              className="float-right font-bold"
+              className="float-right font-bold text-red-200 hover:text-white"
               onClick={() => setErrorMessage('')}
             >
               &times;
             </button>
+          </div>
+        )}
+
+        {/* Newly created game information */}
+        {createdGameInfo && (
+          <div className="bg-yellow-800/30 border border-amber-500 p-4 rounded w-full">
+            <div className="flex justify-between mb-2">
+              <h3 className="text-amber-400 font-semibold">Private Game Created!</h3>
+              <button 
+                onClick={() => setCreatedGameInfo(null)}
+                className="text-amber-300 hover:text-amber-100"
+              >
+                &times;
+              </button>
+            </div>
+            <p className="mb-2">Share this code with your friend:</p>
+            <div className="bg-black/30 p-2 rounded flex justify-between items-center mb-3">
+              <span className="font-mono text-lg tracking-wider text-amber-300">{createdGameInfo.gameCode}</span>
+              <button 
+                onClick={() => navigator.clipboard.writeText(createdGameInfo.gameCode)}
+                className="text-xs bg-amber-700 hover:bg-amber-600 px-2 py-1 rounded"
+              >
+                Copy
+              </button>
+            </div>
+            <div className="flex justify-between">
+              <button
+                onClick={handleStartCreatedGame}
+                className="bg-amber-600 hover:bg-amber-500 px-3 py-1 rounded text-white"
+              >
+                Go to Game
+              </button>
+              <button
+                onClick={() => handleDeleteGame(createdGameInfo.id)}
+                className="bg-red-800 hover:bg-red-700 px-3 py-1 rounded text-white"
+              >
+                Delete Game
+              </button>
+            </div>
           </div>
         )}
 
@@ -158,7 +278,7 @@ const LandingPage = () => {
         </div>
 
         {/* Online Games Section */}
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-6 w-full">
           <h2 className="text-2xl font-bold text-amber-400 text-center">Online Games</h2>
           
           {!isLoggedIn ? (
@@ -173,7 +293,7 @@ const LandingPage = () => {
             </div>
           ) : (
             <>
-              <div className="space-y-4 w-80 flex gap-4 h-28">
+              <div className="space-y-4 w-full flex gap-4 h-28">
                 <button 
                   onClick={() => handleCreateGame(false)}
                   disabled={isLoading}
@@ -212,7 +332,47 @@ const LandingPage = () => {
                 </div>
               </div>
               
+              {/* My Games Section */}
               <div className="pt-4">
+                <h3 className="text-lg font-semibold mb-2">My Created Games:</h3>
+                <div className="max-h-40 overflow-y-auto bg-black/20 rounded border border-amber-500/50 mb-4">
+                  {isLoading ? (
+                    <div className="flex justify-center items-center p-4">
+                      <div className="animate-spin h-6 w-6 border-2 border-white border-t-transparent rounded-full"></div>
+                      <span className="ml-2">Loading...</span>
+                    </div>
+                  ) : myGames.filter(game => game.player1._id === user._id && game.status === 'waiting').length === 0 ? (
+                    <p className="text-center py-4 text-gray-400">No games waiting for players</p>
+                  ) : (
+                    <ul className="divide-y divide-amber-500/30">
+                      {myGames
+                        .filter(game => game.player1._id === user._id && game.status === 'waiting')
+                        .map(game => (
+                          <li key={game._id} className="p-2 hover:bg-amber-800/20 flex justify-between items-center">
+                            <div className="flex flex-col">
+                              <span className="text-sm">{game.isPublic ? 'Public Game' : 'Private Game'}</span>
+                              <span className="text-xs text-gray-400">Code: {game.gameCode}</span>
+                            </div>
+                            <div className="flex gap-2">
+                              <button 
+                                onClick={() => navigate(`/game?id=${game._id}&code=${game.gameCode}`)}
+                                className="px-2 py-1 text-xs bg-amber-700 hover:bg-amber-600 rounded"
+                              >
+                                Open
+                              </button>
+                              <button 
+                                onClick={() => handleDeleteGame(game._id)}
+                                className="px-2 py-1 text-xs bg-red-800 hover:bg-red-700 rounded"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </li>
+                        ))}
+                    </ul>
+                  )}
+                </div>
+
                 <h3 className="text-lg font-semibold mb-2">Public Games:</h3>
                 <div className="max-h-40 overflow-y-auto bg-black/20 rounded border border-amber-500/50">
                   {isLoading ? (
@@ -239,10 +399,13 @@ const LandingPage = () => {
                   )}
                 </div>
                 <button 
-                  onClick={loadPublicGames}
+                  onClick={() => {
+                    loadPublicGames();
+                    loadMyGames();
+                  }}
                   className="mt-2 w-full text-sm text-amber-400 hover:text-amber-300"
                 >
-                  Refresh List
+                  Refresh Lists
                 </button>
               </div>
             </>

@@ -86,7 +86,7 @@ const Login = () => {
       }
       
       if (response && response.success && response.token) {
-        console.log('Authentication successful, storing token');
+        console.log('Authentication successful, storing token:', response.token);
         // Store token based on "Remember Me" choice
         if (rememberMe) {
           localStorage.setItem('token', response.token);
@@ -96,6 +96,11 @@ const Login = () => {
           sessionStorage.setItem('token', response.token);
           sessionStorage.setItem('user', JSON.stringify(response.user));
           console.log('Stored in sessionStorage for this session only');
+        }
+        
+        // For demo mode, append 'demo-' prefix to tokens if they don't have it
+        if (response.token.includes('demo-token')) {
+          console.log('Demo mode detected, ensuring token format is correct');
         }
         
         // Show success message and redirect
@@ -119,16 +124,16 @@ const Login = () => {
   const showSuccessMessage = () => {
     // Create success message element
     const successMessage = document.createElement('div');
-    successMessage.className = 'fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50';
+    successMessage.className = 'fixed inset-0 flex items-center justify-center bg-black bg-opacity-70 z-50';
     successMessage.innerHTML = `
-      <div class="bg-white rounded-lg p-8 flex flex-col items-center shadow-2xl transform scale-0 transition-transform duration-500">
-        <div class="w-16 h-16 rounded-full bg-green-500 flex items-center justify-center mb-4">
+      <div class="bg-[#1A1814] rounded-lg p-8 flex flex-col items-center shadow-2xl transform scale-0 transition-transform duration-500 border-2 border-red-800">
+        <div class="w-16 h-16 rounded-full bg-red-800 flex items-center justify-center mb-4">
           <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
           </svg>
         </div>
-        <h2 class="text-2xl font-bold text-gray-800">${isSignup ? 'Signup Successful!' : 'Login Successful!'}</h2>
-        <p class="text-gray-600 mt-2">Redirecting to homepage...</p>
+        <h2 class="text-2xl font-bold text-red-100">${isSignup ? 'Signup Successful!' : 'Login Successful!'}</h2>
+        <p class="text-gray-400 mt-2">Redirecting to homepage...</p>
       </div>
     `;
     document.body.appendChild(successMessage);
@@ -165,151 +170,250 @@ const Login = () => {
     if (rememberMe) {
       localStorage.setItem('token', mockToken);
       localStorage.setItem('user', JSON.stringify(mockUser));
+      console.log('Stored in localStorage for persistent session', { mockToken, mockUser });
     } else {
       sessionStorage.setItem('token', mockToken);
       sessionStorage.setItem('user', JSON.stringify(mockUser));
+      console.log('Stored in sessionStorage for this session only', { mockToken, mockUser });
     }
     
     // Show success message
     showSuccessMessage();
   };
 
+  // Checkerboard pattern
+  const renderCheckerboard = () => {
+    const squares = [];
+    for (let i = 0; i < 64; i++) {
+      const row = Math.floor(i / 8);
+      const col = i % 8;
+      const isBlack = (row + col) % 2 === 1;
+      squares.push(
+        <div 
+          key={i} 
+          className={`absolute ${isBlack ? 'bg-red-900/20' : 'bg-gray-200/5'}`}
+          style={{
+            width: '12.5%',
+            height: '12.5%',
+            top: `${Math.floor(i / 8) * 12.5}%`,
+            left: `${(i % 8) * 12.5}%`,
+            transition: 'all 0.3s ease',
+          }}
+        />
+      );
+    }
+    return squares;
+  };
+
   return (
     <div className="h-screen w-screen fixed select-none">
-      <div className="fixed bg-gradient-to-tr from-amber-700 to-[#302E2B] h-full w-full flex justify-center items-center">
-        <form 
-          onSubmit={handleSubmit}
-          className="shadow-2xl bg-transparent bg-opacity-50 border-2 border-amber-400 
-          w-2/3 lg:w-1/3 xl:w-1/3 h-auto hover:scale-105 hover:shadow-2xl 
-          hover:bg-opacity-75 transition-all duration-300 rounded-lg p-6 flex flex-col gap-5"
+      {/* Background with subtle animated gradient */}
+      <div className="fixed bg-gradient-to-br from-[#1A1814] via-[#2C1B18] to-[#0E0A08] h-full w-full flex justify-center items-center overflow-hidden">
+        {/* Checkerboard background pattern */}
+        <div className="absolute top-0 left-0 w-full h-full opacity-10 overflow-hidden">
+          <div className="relative w-full h-full">
+            {renderCheckerboard()}
+          </div>
+        </div>
+        
+        {/* Chess piece decoration top */}
+        <div className="absolute top-10 left-1/4 w-32 h-32 opacity-20">
+          <div className="w-full h-full rounded-full border-2 border-red-800 flex items-center justify-center">
+            <div className="text-red-800 text-6xl transform -translate-y-1">♞</div>
+          </div>
+        </div>
+        
+        {/* Chess piece decoration bottom */}
+        <div className="absolute bottom-10 right-1/4 w-32 h-32 opacity-20">
+          <div className="w-full h-full rounded-full border-2 border-red-800 flex items-center justify-center">
+            <div className="text-red-800 text-6xl transform -translate-y-1">♜</div>
+          </div>
+        </div>
+
+        {/* Login/Signup Form */}
+        <div 
+          className="relative z-10 shadow-2xl backdrop-blur-sm bg-black/30 border-2 border-red-800 
+          w-11/12 sm:w-3/4 md:w-2/3 lg:w-1/2 xl:w-2/5 max-w-lg h-auto
+          hover:shadow-red-900/30 hover:shadow-2xl transition-all duration-300 rounded-lg 
+          overflow-hidden"
         >
+          {/* Top bar */}
+          <div className="bg-gradient-to-r from-red-900 to-red-800 h-2 w-full" />
           
-          <h1 className="select-none text-4xl text-center md:text-5xl text-amber-400 font-bold">{isSignup ? 'SIGNUP' : 'LOGIN'}</h1>
-          
-          {errors.form && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative text-center">
-              {errors.form}
+          <form 
+            onSubmit={handleSubmit}
+            className="px-6 py-8 md:p-8 flex flex-col gap-5"
+          >
+            {/* Form header */}
+            <div className="text-center mb-2">
+              <h1 className="text-4xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-red-500 to-red-800">
+                {isSignup ? 'SIGN UP' : 'LOGIN'}
+              </h1>
+              <div className="mt-2 w-1/3 h-1 bg-red-800 mx-auto rounded-full" />
             </div>
-          )}
-          
-          {isSignup && (
-            <div className="flex flex-col h-30 gap-2">
-              <label htmlFor="EMAIL" className="text-gray-700 text-3xl flex items-center justify-center"><b>Email</b></label>
-              <div className='flex justify-center flex-col items-center'>
-                <input 
-                  type="email" 
-                  id="EMAIL" 
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  className={`border text-2xl bg-white text-black border-amber-300 rounded-md h-15 w-4/5 px-3 py-2 ${
-                    errors.email ? 'border-red-500' : ''
-                  }`}
-                />
+            
+            {/* Error message */}
+            {errors.form && (
+              <div className="bg-red-900/40 border border-red-700 text-red-200 px-4 py-3 rounded-md text-center text-sm animate-pulse">
+                {errors.form}
+              </div>
+            )}
+            
+            {/* Email field (signup only) */}
+            {isSignup && (
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="EMAIL" className="text-red-200 text-base md:text-lg font-medium ml-1">Email</label>
+                <div className="relative">
+                  <div className="absolute left-0 top-0 h-full w-10 flex items-center justify-center text-red-300">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
+                      <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
+                    </svg>
+                  </div>
+                  <input 
+                    type="email" 
+                    id="EMAIL" 
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    placeholder="your@email.com"
+                    className={`w-full bg-black/30 text-gray-100 border px-10 py-2.5 rounded-md 
+                    focus:outline-none focus:ring-2 focus:ring-red-700 transition-all
+                    ${errors.email ? 'border-red-600' : 'border-red-900/50'}`}
+                  />
+                </div>
                 {errors.email && (
-                  <p className="text-red-500 text-sm mt-1 w-4/5">{errors.email}</p>
+                  <p className="text-red-500 text-xs ml-1 mt-0.5">{errors.email}</p>
                 )}
               </div>
-            </div>
-          )}
+            )}
 
-          <div className="flex flex-col h-30 gap-2">
-            <label htmlFor="USERNAME" className="text-gray-700 text-3xl flex items-center justify-center"><b>Username</b></label>
-            <div className='flex justify-center flex-col items-center'>
-              <input 
-                type="text" 
-                id="USERNAME" 
-                name="username"
-                value={formData.username}
-                onChange={handleChange}
-                className={`border text-2xl bg-white text-black border-amber-300 rounded-md h-15 w-4/5 px-3 py-2 ${
-                  errors.username ? 'border-red-500' : ''
-                }`}
-              />
+            {/* Username field */}
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="USERNAME" className="text-red-200 text-base md:text-lg font-medium ml-1">Username</label>
+              <div className="relative">
+                <div className="absolute left-0 top-0 h-full w-10 flex items-center justify-center text-red-300">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <input 
+                  type="text" 
+                  id="USERNAME" 
+                  name="username"
+                  value={formData.username}
+                  onChange={handleChange}
+                  placeholder="Your username"
+                  className={`w-full bg-black/30 text-gray-100 border px-10 py-2.5 rounded-md 
+                  focus:outline-none focus:ring-2 focus:ring-red-700 transition-all
+                  ${errors.username ? 'border-red-600' : 'border-red-900/50'}`}
+                />
+              </div>
               {errors.username && (
-                <p className="text-red-500 text-sm mt-1 w-4/5">{errors.username}</p>
+                <p className="text-red-500 text-xs ml-1 mt-0.5">{errors.username}</p>
               )}
             </div>
-          </div>
 
-          <div className="flex flex-col h-30 gap-2">
-            <label htmlFor="PASSWORD" className="text-gray-700 text-3xl justify-center flex font-medium"><b>Password</b></label>
-            <div className='flex justify-center flex-col items-center'>
-              <input 
-                type="password" 
-                id="PASSWORD" 
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                className={`border text-2xl bg-white text-black border-amber-300 rounded-md h-15 w-4/5 px-3 py-2 ${
-                  errors.password ? 'border-red-500' : ''
-                }`}
-              />
+            {/* Password field */}
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="PASSWORD" className="text-red-200 text-base md:text-lg font-medium ml-1">Password</label>
+              <div className="relative">
+                <div className="absolute left-0 top-0 h-full w-10 flex items-center justify-center text-red-300">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <input 
+                  type="password" 
+                  id="PASSWORD" 
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  placeholder="••••••••"
+                  className={`w-full bg-black/30 text-gray-100 border px-10 py-2.5 rounded-md 
+                  focus:outline-none focus:ring-2 focus:ring-red-700 transition-all
+                  ${errors.password ? 'border-red-600' : 'border-red-900/50'}`}
+                />
+              </div>
               {errors.password && (
-                <p className="text-red-500 text-sm mt-1 w-4/5">{errors.password}</p>
+                <p className="text-red-500 text-xs ml-1 mt-0.5">{errors.password}</p>
               )}
             </div>
-          </div>
+            
+            {/* Remember me checkbox */}
+            <div className="flex items-center mt-1">
+              <div 
+                className={`w-5 h-5 rounded border flex items-center justify-center cursor-pointer mr-3
+                  ${rememberMe ? 'bg-red-800 border-red-800' : 'border-gray-500 bg-transparent'}`}
+                onClick={() => setRememberMe(!rememberMe)}
+              >
+                {rememberMe && (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                )}
+              </div>
+              <label 
+                className="text-gray-300 cursor-pointer text-sm"
+                onClick={() => setRememberMe(!rememberMe)}
+              >
+                Remember me
+              </label>
+            </div>
 
-          <label className="flex items-center space-x-2 mt-4 justify-center">
-            <input 
-              type="checkbox" 
-              className="w-5 h-5 text-amber-600" 
-              checked={rememberMe}
-              onChange={() => setRememberMe(!rememberMe)}
-            />
-            <span className="text-gray-700 text-lg"><b>Remember Me</b></span>
-          </label>
-
-          <div className="flex justify-center gap-8 mt-6 h-20">
-            <button 
+            {/* Submit button */}
+            <button
               type="submit"
               disabled={isLoading}
-              className={`hover:text-white border-2 rounded-2xl h-10 w-32 border-amber-400 
-                hover:bg-gradient-to-tl hover:from-amber-300 hover:to-amber-600 
-                hover:scale-110 transition-all duration-300 font-bold relative
-                ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}
-                hover:shadow-[0_0_15px_rgba(251,191,36,0.7)]`}
+              className={`mt-2 py-2.5 w-full rounded-md font-semibold text-gray-100
+                ${isLoading 
+                  ? 'bg-gray-700 cursor-not-allowed' 
+                  : 'bg-gradient-to-r from-red-800 to-red-700 hover:from-red-700 hover:to-red-600 transition-all duration-300 shadow-lg'
+                }`}
             >
               {isLoading ? (
-                <span className="flex items-center justify-center">
-                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Loading
-                </span>
+                <div className="flex items-center justify-center">
+                  <div className="w-5 h-5 border-t-2 border-b-2 border-white rounded-full animate-spin mr-2"></div>
+                  Processing...
+                </div>
               ) : (
-                isSignup ? 'SIGNUP' : 'LOGIN'
+                isSignup ? 'Create Account' : 'Sign In'
               )}
             </button>
-
-            <button 
-              type="button"
-              className="hover:text-white border-2 rounded-2xl h-10 w-32 border-blue-400 
-              hover:bg-gradient-to-tl hover:from-blue-300 hover:to-blue-600 
-              hover:scale-110 transition-transform duration-300 font-bold
-              hover:shadow-[0_0_15px_rgba(59,130,246,0.7)]"
-              onClick={() => {
-                setIsSignup(!isSignup);
-                setErrors({});
-              }}
-            >
-              {isSignup ? 'LOGIN' : 'SIGNUP'}
-            </button>
-          </div>
-          
-          {/* Demo login button for development without MongoDB */}
-          <div className="mt-4 flex justify-center">
-            <button 
-              type="button"
+            
+            {/* Alternate login option for demo mode */}
+            <div className="flex items-center my-3">
+              <div className="flex-grow h-px bg-gray-700"></div>
+              <div className="px-4 text-xs text-gray-500">or</div>
+              <div className="flex-grow h-px bg-gray-700"></div>
+            </div>
+            
+            <button
               onClick={handleDemoLogin}
-              className="text-sm text-amber-700 hover:text-amber-500 hover:underline"
+              className="py-2 w-full rounded-md font-medium text-gray-300 border border-gray-700 
+              hover:border-red-800 hover:text-red-200 transition-all duration-300"
             >
-              Use Demo Mode (No MongoDB)
+              Demo {isSignup ? 'Signup' : 'Login'} (No MongoDB)
             </button>
-          </div>
-        </form>
+            
+            {/* Switch between login and signup */}
+            <div className="text-center mt-3">
+              <p className="text-gray-400 text-sm">
+                {isSignup ? 'Already have an account?' : "Don't have an account?"} 
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsSignup(!isSignup);
+                    setErrors({});
+                  }}
+                  className="ml-2 text-red-400 hover:text-red-300 focus:outline-none font-medium"
+                >
+                  {isSignup ? 'Sign In' : 'Sign Up'}
+                </button>
+              </p>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );

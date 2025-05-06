@@ -316,6 +316,50 @@ export const forfeitGame = async(req, res) => {
     }
 };
 
+// @desc    Delete a game
+// @route   DELETE /api/games/:id
+// @access  Private
+export const deleteGame = async(req, res) => {
+    try {
+        const game = await Game.findById(req.params.id);
+
+        if (!game) {
+            return res.status(404).json({
+                success: false,
+                message: 'Game not found'
+            });
+        }
+
+        // Check if the user is the creator of the game
+        if (game.player1.toString() !== req.user.id) {
+            return res.status(403).json({
+                success: false,
+                message: 'Only the creator of the game can delete it'
+            });
+        }
+
+        // Only waiting games can be deleted
+        if (game.status !== 'waiting') {
+            return res.status(400).json({
+                success: false,
+                message: 'Only games that are waiting for players can be deleted'
+            });
+        }
+
+        await game.deleteOne();
+
+        res.status(200).json({
+            success: true,
+            message: 'Game deleted successfully'
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
 // Helper Functions
 
 // Validate if a move is legal (simplified version)
