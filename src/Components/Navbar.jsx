@@ -81,7 +81,7 @@ const Navbar = () => {
   return (
     <div 
       style={{backgroundColor: 'transparent', boxShadow: 'none'}} 
-      className={`flex justify-between items-center absolute w-full h-16 bg-transparent px-2 sm:px-6 select-none z-[9999] transition-all duration-1000 ${
+      className={`flex justify-between items-center fixed w-full h-16 bg-transparent px-2 sm:px-6 select-none z-[9999] transition-all duration-1000 ${
         isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-10'
       }`}
     >
